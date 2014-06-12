@@ -1,0 +1,134 @@
+var http = require('http');
+var util = require('util');
+var fs = require('fs');
+var lineReader = require('line-reader');
+
+// add prototype method into Array
+(function(){
+	Array.prototype.each = function(callback) {
+		console.log('Array.each', this);
+		for(var i = 0; i < this.length; i++) {
+			callback.call(this, i, this[i]);
+		}
+	};
+	
+	load_keywords(function(names, urls) {
+		console.log('load_keywords', urls);
+		var spider = new ImageSpider(names, urls);
+		spider.doFetch();
+	});
+})();
+
+function load_keywords(callback) {
+	var linenum = 1;
+	var urls = [];
+	var names = [];
+	// use line reader
+	lineReader.eachLine('file.txt', function(name, last) {
+		console.log('line ' + (linenum) + ' = ' + name);
+		console.log('line ' + (linenum ++) + ' is last = ' + last);
+		
+		var indexOfR = name.indexOf('\r');
+		name = name.substring(0, indexOfR >= 0 ? indexOfR : name.length);
+		
+		var nameEncoded = encodeURI(name);
+		var url = util.format("http://cn.bing.com/images/search?q=%s&go=&qs=n&form=QBIR&pq=%s&sc=8-4&sp=-1&sk=", nameEncoded, nameEncoded);
+		names.push(name);
+		urls.push(url);
+		if (last) {
+			if (callback) {
+				callback(names, urls);
+			}
+			return false;
+		}if (callback) {
+				callback(names, urls);
+			}
+		return false;
+		// return true;
+	});
+}
+
+function ImageSpider(names, urls) {
+	this.__names = names;
+	this.__urls = urls;
+	this.__current = -1;
+	this.doFetch = function(){
+		this._nextRequest();
+	};
+	
+	this._nextRequest = function(){
+		var self = this;
+		self.__current ++;
+		var index = self.__current;
+		if (!(self.__names[index] || self.__urls[index])) {
+			return ; // end...
+		}
+		// do request_html
+		self._requestHtml(self.__urls[index], function(err, content) {
+			if (err) self.nextRequest();
+			
+			self.findImageUrlFromTag(content, function(imageUrls){
+				if (!imageUrls) self.nextRequest();
+				var dir = 'images';
+				imageUrls.each(function(index, url){
+					var filename = './' + dir + '/' + '-' + index + '.jpg';
+					console.log('filename', filename);
+					self._urlretrieve(url, filename);
+				});
+				
+			});
+		});
+	};
+	
+	// request html content
+	this._requestHtml = function(url, callback) {
+		console.log('_requestHtml', url);
+		var buffer = '';
+		var req = http.get(url, function(res){
+			res.on('data', function(data) {
+				var dataStr = data.toString();
+				buffer += dataStr;
+			}).on('end', function(){
+				console.log('buffer = ' + buffer.substring(0, Math.min(100, buffer.length)));
+				
+				var file_output_stream = fs.createWriteStream('data');
+				file_output_stream.write(buffer);
+				file_output_stream.end();
+				
+				callback(null, buffer);
+			}).on('error', function(err){
+				console.error('url=', url, 'error', err);
+				callback(err, buffer);
+			});
+		});
+	};
+	
+	// request html content
+	this.findImageUrlFromTag = function(content, callback) {
+		var imageUrls = [];
+		var regex = /\<img[\s]+src[\s]*=[\s"']*(http\:\/\/[^\s'"]+)/gi;
+		var group;
+		while (group = regex.exec(content)) {
+			imageUrls.push(group[1]);
+			// break if number is larger than 10
+			// if (imageUrls.length >= 10) break;
+		}
+		callback(imageUrls);
+	};
+	
+	// request images
+	this._urlretrieve = function(url, filename) {
+		http.get(url, function(res){
+			res.on('end', function() {
+				console.log('urlretrieve end', filename, '下载完成');
+			});
+			
+			res.on('error', function(err) {
+				console.error('urlretrieve', url, 'error', err);
+			});
+			
+			var file_output_stream = fs.createWriteStream(filename);
+			res.pipe(file_output_stream);
+		});
+	};
+}

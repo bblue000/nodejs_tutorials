@@ -1,0 +1,51 @@
+
+
+// prototype的概念基于“函数即是类”
+// 原型就是为new的对象提供统一模板
+function T (name) {
+	this.$name = name;
+}
+console.log(T.prototype);
+console.log(T.prototype.constructor);
+console.log(typeof T.prototype);
+console.log(T.prototype instanceof T);
+console.log(T.prototype instanceof Function);
+
+
+// T.prototype = new T();
+
+var t1 = new T('t1');
+var t2 = new T('t2');
+t1.getName = function() {
+	console.log('t1.getName');
+	return this.$name;
+}
+
+
+console.log('t1.getName = ' + t1.getName());
+// console.log('t2.getName = ' + t2.getName()); // no method
+
+
+// 与上面的区别：一个是对象的级别赋值，一个是类的级别赋值
+T.prototype.getName  = function() {
+	return this.$name;
+}
+console.log('t1.getName = ' + t1.getName()); // t1
+console.log('t2.getName = ' + t2.getName()); // t2
+
+// 从另一个层级上实现了多态
+
+
+
+
+// 模仿ruby的each
+Array.prototype.each = function(callback) {
+	console.log(this); // array object
+	for(var i = 0; i < this.length; i ++) {
+		callback.call(this, i, this[i]);
+	}
+};
+
+[1, 2, 3].each(function(index, value) {
+	console.log(value);
+});

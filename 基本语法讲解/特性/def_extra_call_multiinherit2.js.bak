@@ -1,0 +1,34 @@
+
+function T1() {
+	this.func1 = function() {
+		console.log('T1.funct1');
+	}
+}
+
+function T2() {
+	this.func2 = function(param) {
+		console.log('T2.funct2 param = ' + param);
+		console.log('T2.funct2 = ' + this);
+		console.log(this);
+	}
+}
+
+// 可以通过prototype定义主父类
+function Tt() {
+	T1.call(this);
+	T2.call(this);
+}
+
+// > { func1: [Function], func2: [Function] }
+// > T1.funct1
+// > T2.funct2 param = 1
+// > T2.funct2 = [object Object]
+// > { func1: [Function], func2: [Function] }
+var tt = new Tt();
+console.log(tt);
+console.log();
+
+tt.func1();
+console.log();
+
+tt.func2(1);
